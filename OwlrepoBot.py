@@ -5,11 +5,39 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
+from selenium.common.exceptions import NoSuchElementException
 
-EQUIP = ['helmet', 'face', 'eye', 'ear', 'cape', 'top', 'gloves', 'bottom', 'shoes', '1hs', '1hb', '1ha', '2hs', '2hb', '2ha', 'spear', 'pole', 'bow', 'xbow', 'wand', 'staff', 'dagger', 'claw', 'gun', 'knucle', 'shield']
-STAT = ['str', 'dex', 'int', 'luk', 'hp', 'mp', 'speed', 'jump', 'acc', 'avoid', 'att', 'matt', 'def', 'mdef']
-SCROLL = ['10%', '30%', '60%', '70%', '100%']
+FORMAT = ['Min', 'P25']
+EQUIP = {'helmet' : 'helm',
+         'face accessory' : ['face', 'faceacc'],
+         'eye accessory' : ['eye', 'eyeacc'],
+         'earring' : ['ear', 'earrings'],
+         'overall armor' : 'overall',
+         'topwear' : ['top'],
+         'bottomwear' : ['bottom', 'bot'],
+         'gloves' : ['glove'],
+         'shoes' : ['shoe'],
+         'cape' : [],
+         'shield' : [],
+         'one-handed sword' : ['1hs'],
+         'two-handed sword' : ['2hs'],
+         'one-handed bw' : ['1hb', '1hbw'],
+         'two-handed bw' : ['2hb', '2hbw'],
+         'one-handed axe' : ['1ha'],
+         'two-handed axe' : ['2ha'],
+         'spear' : [],
+         'polearm' : ['pole'],
+         'bow' : [],
+         'crossbow' : ['xbow'],
+         'wand' : [],
+         'staff' : [],
+         'claw' : [],
+         'dagger' : ['dag'],
+         'gun' : [],
+         'knuckler' : ['knuckle', 'kn']
+         }
+STAT = ['str', 'dex', 'int', 'luk', 'hp', 'mp', 'att', 'matt', 'avoid', 'acc']
+PERCENT = {'10%' : '10', '60%' : '60', '100%' : '100', '30%' : '30', '70%' : '70'}
 
 with open('token.txt', 'r') as file:
     TOKEN = file.read().strip()
@@ -27,48 +55,83 @@ class MyClient(discord.Client):
         if message.author == self.user:
             return
         if message.content.startswith('!owl'):
-            itemname = message.content.split(' ')[1:]
-            if not itemname:
+            input = " ".join(message.content.split(' ')[1:])
+            if not input:
                 await message.channel.send(f'{message.author.mention} , do "!owl itemname" u dumb')
             else:
-                price = self.get_price(itemname)
-                embed = self.format_answer(price)
-                await message.channel.send(embed=embed)
+                file = discord.File('owl.png')
+                input = self.input_modify(input)
+                print(input)
+                data = self.get_price(input)
+                embed = self.format_answer(input, data)
+                await message.reply(file=file, embed=embed)
 
-    def get_items(self, itemname):
-        pass
+    def input_modify(self, input):
+        input_split = input.lower().split()
+        modified = ""
 
-    def check_scroll(self, itemname):
-        if itemname[0].lower in EQUIP:
-            if itemname[1].lower in STAT:
-                if len(itemname) >= 3:
-                    if itemname[2] in SCROLL:
-                        # scroll with %
-                        if itemname[2] == '30%' or '70%':
-                            result += 'Dark '
-                        result += 'scroll for ' + itemname[0] + 'for ' + itemname[1] + ' ' + itemname[2]
-                        pass
-                    else:
-                        # scroll without %
-                        result = []
-                        pass
-        else:
-            return itemname
+        for i, word in enumerate(input_split):
+            for equip, aliases in EQUIP.items():
+                if word == equip or word in aliases:
+                    print(word)
+                    next_index = i + 1
+                    if next_index < len(input_split) and input_split[next_index] in STAT:
+                        modified = f"scroll for {equip} for {input_split[next_index]}"
+                        print(word, modified)
+                        next_next_index = next_index + 1
+                        if next_next_index < len(input_split):
+                            percent_word = input_split[next_next_index]
+                            for percent, value in PERCENT.items():
+                                if percent_word == percent or percent_word == value:
+                                    if percent == '30%' or percent == '70%':
+                                        modified = 'dark ' + modified
+                                    modified += f" {percent}"
+                                    print(percent_word, modified)
 
-    def get_price(self, itemname):
-        url = 'https://owlrepo.com/items?keyword=' + '%20'.join(itemname)
+        if modified:
+            return modified
+        return input
+
+
+    def get_price(self, input):
+        url = 'https://owlrepo.com/summary'
         driver.get(url)
-        time.sleep(1)
+        
+        search_box = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, '//*[@id="search-box"]'))
+        )
+        search_box.send_keys(input)
 
-        row = driver.find_element(By.XPATH, '/html/body/main/div[1]/div[2]/div/div[1]')
-        result = row.text.splitlines()[:2]
-        result.append(row.text.splitlines()[8])
-
-        return result
+        items = []
+        for row in range(1, 10):
+            item = []
+            for cell in range(1, 12):
+                xpath = f'/html/body/main/div[2]/div[2]/div/div[{row}]/div[{cell}]'
+                try:
+                    element = driver.find_element(By.XPATH, xpath) 
+                    if element:
+                        item.append(element.text)
+                except NoSuchElementException:
+                    break
+            if item: items.append(item)
+        #print(items)
+        return items
     
-    def format_answer(self, result):
-        desc = '**Updated**: ' + result[0] + '\n**Min Price**: ' + result[2]
-        embed = discord.Embed(title=result[1], description=desc)
+    def format_answer(self, input, data):
+        embed = discord.Embed(title=input, colour=0x3498DB)
+        embed.set_thumbnail(url='attachment://owl.png')
+        names = [row[0] for row in data]
+        dates = [row[1] for row in data]
+        data = [[row[i] for i in [5, 6]] for row in data]
+
+        for row in range(len(data)):
+            value = ""
+            value += dates[row] + '\n'
+            for i in range(len(FORMAT)):
+                element = f'{FORMAT[i]}: {data[row][i]} '
+                value += element + '\n'
+
+            embed.add_field(name=f"**{names[row]}**", value=value)
         return embed
 
 bot = MyClient(intents=intents)
