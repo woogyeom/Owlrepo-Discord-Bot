@@ -76,7 +76,9 @@ async def on_ready():
         elements = line.strip().split(',')
         PRICE[elements[0]] = (elements[1], elements[2])
     pricefile.close
+    print('Price Loaded!')
     print(PRICE)
+    print()
     print(f'Logged in as {bot.user}')
     await bot.change_presence(status=discord.Status.idle, activity=discord.CustomActivity('Hoot Hoot'))
 
@@ -211,8 +213,6 @@ def write_pricefile():
 
 def check_pricedict(rowlist):
     [itemname, date, min, p25] = rowlist
-    print(rowlist)
-    print(PRICE)
     for key, value in PRICE.items():
         if key == itemname:
             owlrepo_date = datetime.strptime(date, "%Y-%m-%d")
