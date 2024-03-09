@@ -4,5 +4,5 @@
 
 Bot Features
 - Search item prices on owlrepo.com
-- Keyword substitution for scroll names (!owl overall int 10 -> !owl scroll for overall armor for int 10%)
+- Auto complete the scroll names (!owl overall int 10 -> !owl scroll for overall armor for int 10%)
 - Update item prices with the latest information you have
