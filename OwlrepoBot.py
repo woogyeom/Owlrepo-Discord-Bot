@@ -1,7 +1,6 @@
 import discord
 import discord.ui
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -65,7 +64,11 @@ with open('token.txt', 'r') as file:
     TOKEN = file.read().strip()
 intents = discord.Intents.default()
 intents.message_content = True
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install())) 
+
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")
+service = Service('chromedriver-linux64/chromedriver')
+driver = webdriver.Chrome(service=service, options=options)
 
 bot = discord.Client(intents=intents)
 
